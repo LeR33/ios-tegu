@@ -161,3 +161,43 @@ jobs:
           name: shim-boot-payload
           path: shim/out/shim-boot-payload.img
           if-no-files-found: error
+
+  qemu:
+    # Pre-hardware smoke test: boot the fresh kernel in QEMU virt with the
+    # tegu payload (mkadt --qemu) and archive the framebuffer decode, guest
+    # exceptions and register dump. Evidence mode for now: the job records
+    # the --fail-on-panic verdict but does not fail the build until the tegu
+    # kernel's QEMU baseline is established on hardware day.
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: xnu-kernel
+          path: k
+      - name: Install QEMU + LLVM
+        run: sudo apt-get update -q && sudo apt-get install -y -q qemu-system-arm llvm
+      - name: Build QEMU payload
+        run: |
+          python3 tools/mkadt.py qemu.adt --qemu
+          python3 tools/mkpayload.py k/kernel.development.tegu qemu.adt payload-qemu.bin \
+            --cmdline 'debug=0xc serial=3 cpus=1 keepsyms=1 -enable_kprintf_spam rd=md0'
+      - name: Boot in QEMU (fail-on-panic verdict recorded, non-blocking)
+        id: boot
+        continue-on-error: true
+        run: |
+          set +e
+          python3 tools/qemu-tegu.py payload-qemu.bin qemu_run \
+            --kernel k/kernel.development.tegu --fail-on-panic --secs 45
+          rc=$?
+          echo "qemu verdict exit=$rc (0 ok, 2 panic, 3 undecodable)" | tee qemu_run/verdict.txt
+          exit 0
+      - name: Summarize
+        run: cat qemu_run/result.json qemu_run/verdict.txt 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qemu-run
+          path: qemu_run/
+          if-no-files-found: warn

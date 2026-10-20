@@ -34,7 +34,7 @@
 | Milestone | State |
 |---|---|
 | M1 — CI builds XNU for tegu | ✅ **done** ([v0.1.0-m1](https://github.com/LeR33/ios-tegu/releases/tag/v0.1.0-m1)) |
-| M2 — shim runs on hardware | 🔜 next ([tracking issue](https://github.com/LeR33/ios-tegu/issues/6)) |
+| M2 — shim runs on hardware | 🔜 next ([tracking issue](https://github.com/LeR33/ios-tegu/issues/6) · [phone runbook](docs/HARDWARE-SESSION.md)) |
 | M3 — XNU boots to a prompt | ⏳ planned |
 | M4 — framebuffer console | ⏳ planned |
 | M5 — UFS + HFS+ root + iOS image | ⏳ planned |
@@ -232,7 +232,7 @@ xnu/patches/     81-patch series against xnu-8796 (tegu port of ios-sweet's)
 shim/            bare-metal aarch64 shim: MMU, FDT, console, loader
 tools/           mkadt · mkpayload · mkiosroot · unpack_bootv4 · fdt-read
                  tegu-root-tweaks · ota-fetch · xnu-cc · pstore-pull
-docs/            BRINGUP.md (milestones) · QEMU_TESTING.md · reference notes
+docs/            BRINGUP.md (milestones) · HARDWARE-SESSION.md (phone runbook) · QEMU_TESTING.md · reference notes
 NOTES.md         confirmed tegu hardware facts (from the stock DTBs)
 ```
 
