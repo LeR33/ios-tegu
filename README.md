@@ -1,91 +1,137 @@
-# ios-tegu
+<p align="center">
+  <img src="docs/assets/banner.png" alt="ios-tegu banner" width="720">
+</p>
 
-[![verify](https://github.com/LeR33/ios-tegu/actions/workflows/verify.yml/badge.svg)](https://github.com/LeR33/ios-tegu/actions/workflows/verify.yml)
-[![xnu](https://github.com/LeR33/ios-tegu/actions/workflows/xnu.yml/badge.svg)](https://github.com/LeR33/ios-tegu/actions/workflows/xnu.yml)
+<h1 align="center">ios-tegu</h1>
 
-Apple's iOS 16 running on a **Google Pixel 9a** (tegu, Google Tensor G4).
+<p align="center">
+  <b>Apple's iOS 16 running on the Google Pixel 9a.</b><br>
+  The XNU kernel and the unmodified iPhone userland, ported to Tensor hardware.
+</p>
 
-XNU (xnu-8796, the iOS 16 generation) ported to the Pixel 9a, with the
-unmodified iPhone X **iOS 16.7.16 (20H392)** userland on top: launchd, the
-system daemons, backboardd, SpringBoard and the stock apps.
+<p align="center">
+  <a href="https://github.com/LeR33/ios-tegu/actions/workflows/verify.yml"><img src="https://github.com/LeR33/ios-tegu/actions/workflows/verify.yml/badge.svg" alt="verify"></a>
+  <a href="https://github.com/LeR33/ios-tegu/actions/workflows/xnu.yml"><img src="https://github.com/LeR33/ios-tegu/actions/workflows/xnu.yml/badge.svg" alt="xnu"></a>
+  <a href="https://github.com/LeR33/ios-tegu/releases"><img src="https://img.shields.io/github/v/release/LeR33/ios-tegu?color=blue&include_prereleases" alt="release"></a>
+  <a href="https://github.com/LeR33/ios-tegu/stargazers"><img src="https://img.shields.io/github/stars/LeR33/ios-tegu?style=social" alt="stars"></a>
+</p>
 
-This is a port of [dipa-studio/ios-sweet](https://github.com/dipa-studio/ios-sweet)
-(iOS 16 on a Pixel 9a) adapted to Google's Tensor hardware: the same
-XNU patch series, shim architecture and iOS root image pipeline, with the
-tegu register map confirmed from the stock **CP3A.260905.009** firmware.
+---
 
-## Status: pre-hardware (kernel builds green, never booted yet)
+> This is a port of [dipa-studio/ios-sweet](https://github.com/dipa-studio/ios-sweet)
+> (iOS 16 on a Redmi Note 10 Pro) to the Pixel 9a (`tegu`, Google Tensor G4):
+> the same XNU patch series, shim architecture and iOS root image pipeline,
+> with tegu's register map confirmed from the stock **CP3A.260905.009** firmware.
+> Experimental research project — **not a usable phone OS**.
 
-The kernel compiles clean in CI: `kernel.development.tegu` (Mach-O) is
-produced by the `xnu` workflow on every change (milestone 1 of
-docs/BRINGUP.md is done). Everything below is a direct port of a proven
-architecture, with tegu's confirmed hardware values filled in (see
-NOTES.md for the register map and its sources). It has **not run on a
-device yet**. The first hardware milestone is listed in docs/BRINGUP.md.
+## 📋 Status
 
-## Target
+**The kernel compiles green; nothing has run on a device yet.**
+
+| Milestone | State |
+|---|---|
+| M1 — CI builds XNU for tegu | ✅ **done** ([v0.1.0-m1](https://github.com/LeR33/ios-tegu/releases/tag/v0.1.0-m1)) |
+| M2 — shim runs on hardware | 🔜 next ([tracking issue](https://github.com/LeR33/ios-tegu/issues/6)) |
+| M3 — XNU boots to a prompt | ⏳ planned |
+| M4 — framebuffer console | ⏳ planned |
+| M5 — UFS + HFS+ root + iOS image | ⏳ planned |
+| M6 — touch, SpringBoard | ⏳ planned |
+
+`kernel.development.tegu` (ARM64 Mach-O, 17.2 MB) is rebuilt on every push by
+GitHub Actions — no local toolchain needed. The full 81-patch series is
+proven to apply cleanly (`--fuzz=0`) on xnu-8796.141.3.
+
+## 🎯 Target
 
 | Item | Value |
 |---|---|
-| Device | Google Pixel 9a (`tegu`) |
-| SoC | Tensor G4 (`zumapro`): 1x X4 + 3x A720 + 4x A520, PSCI 1.0 |
-| Memory | 8 GB @ 0x80000000 |
-| GIC | GICv3 (GICD 0x10400000, GICR 0x10440000) |
+| Device | Google Pixel 9a (`tegu`), 128 GB |
+| SoC | Tensor G4 (`zumapro`): 1× X4 + 3× A720 + 4× A520, PSCI 1.0 |
+| Memory | 8 GB @ `0x80000000` |
+| Interrupts | GICv3 — GICD `0x10400000`, GICR `0x10440000` |
 | Timer | 24.576 MHz generic timer |
-| Storage | 128 GB UFS (`samsung,exynos-ufs` @ 0x13200000) |
-| Panel | 1080x2406, presented to iOS as an iPhone X panel |
-| Stock firmware reference | Android 17, CP3A.260905.009, kernel 6.6 |
-| iOS userland | iPhone X (iPhone10,3 / D22AP), iOS 16.7.16 (20H392) |
+| Storage | UFS, `samsung,exynos-ufs` @ `0x13200000` (own driver planned) |
+| Panel | 1080×2406, presented to iOS as an iPhone X panel |
+| Stock firmware ref. | Android 17, CP3A.260905.009, kernel 6.6 |
+| iOS userland | iPhone X (iPhone10,3 / D22AP) **16.7.16 (20H392)**, unmodified |
 
-## How it will boot
+All hardware values above were confirmed from the stock device trees
+(extracted by the `ota` workflow — see `NOTES.md`).
+
+## 🔄 How it will boot
 
 ```
-BootROM -> ABL -> `fastboot boot` shim-boot.img (temporary, nothing flashed)
-  -> shim (own MMU, reads the live FDT, loads the payload)
-  -> XNU Mach-O + generated Apple Device Tree + boot-args
-  -> UFS driver -> HFS+ root in userdata
-  -> dyld + shared cache -> launchd -> backboardd + SpringBoard
+BootROM → ABL → `fastboot boot` shim-boot.img   (temporary, nothing flashed)
+                │
+                ▼
+        shim: own MMU setup, reads the live FDT,
+              loads the payload from the ramdisk
+                │
+                ▼
+        XNU Mach-O + generated Apple Device Tree + boot-args
+                │
+                ▼
+        UFS driver → HFS+ root in userdata → dyld + shared cache
+                │
+                ▼
+        launchd → backboardd + SpringBoard → 🍏
 ```
 
-## Build (GitHub Actions, no Linux PC needed)
+## 🚀 Build (GitHub Actions, no Linux PC needed)
+
+Fork the repo, then from any machine with the GitHub CLI:
 
 ```bash
-gh workflow run verify.yml -R LeR33/ios-tegu    # fast check: all 81 patches apply to xnu-8796.141.3
-gh workflow run xnu.yml -R LeR33/ios-tegu      # builds xnu-8796 + patches (macOS ARM runner)
-gh workflow run ota.yml -R LeR33/ios-tegu     # fetches stock CP3A.260905.009 images for reference
+gh workflow run verify.yml -R YOU/ios-tegu    # ~3 min: all 81 patches apply to xnu-8796.141.3
+gh workflow run xnu.yml   -R YOU/ios-tegu     # ~15 min: kernel.development.tegu (macOS runner)
+gh workflow run ota.yml   -R YOU/ios-tegu     # stock CP3A.260905.009 images + DTBs
 ```
 
-Artifacts produced: `xnu-kernel` (the Mach-O kernel + SHA256SUMS),
-`xnu-buildtree` (the patched tree, for local single-file compiles with
-`tools/xnu-cc.py`), and the `ota` run's stock images + dumped DTBs.
+| Workflow | What it proves | Artifacts |
+|---|---|---|
+| `verify` | the patch series applies cleanly, `--fuzz=0` | — |
+| `xnu` | XNU compiles for tegu (`MACHINE_CONFIG=TEGU`) | `xnu-kernel`, `xnu-buildtree` |
+| `ota` | stock firmware reference extracts | `tegu-stock-cp3a` (boot v4 + DTBs) |
 
-`verify` (Linux, free) runs on every push touching `xnu/patches/` and proves
-the whole series applies cleanly before any macOS build minutes are spent.
+The kernel image of the latest green build is also attached to
+[releases](https://github.com/LeR33/ios-tegu/releases).
 
-Everything hardware-related is tested with `fastboot boot`: temporary, no
-flashing, Android stays installed until the iOS root image step.
+To check a single patch locally without spending CI minutes:
 
-## Repository layout
+```bash
+python3 tools/xnu-cc.py   # replays single compiles from a CI log
+```
 
-- `xnu/patches/` — 81-patch series against xnu-8796 (ported from ios-sweet;
-  tegu values applied: GIC, timer, panel; framebuffer address is a runtime
-  placeholder pending the live FDT dump — see `xnu/patches/TEGU-PORT.md`)
-- `shim/` — bare-metal aarch64 shim (MMU, FDT, console, loader; port of the
-  ios-sweet shim, tegu boot-image specifics pending the first fastboot tests)
-- `tools/` — `mkadt.py` (tegu ADT), `mkpayload.py`, `mkiosroot.sh`,
-  `tegu-root-tweaks.py`, `ota-fetch.sh`, `unpack_bootv4.py`, `fdt-read.py`,
-  QEMU test harness
-- `docs/BRINGUP.md` — milestones and the on-device debug loop
-- `NOTES.md` — confirmed tegu hardware facts (from the stock DTB)
-- `docs/reference-sweet-notes.md` — ios-sweet's bring-up history (reference)
+## 📁 Repository layout
 
-## Safety
+```
+xnu/patches/     81-patch series against xnu-8796 (tegu port of ios-sweet's)
+shim/            bare-metal aarch64 shim: MMU, FDT, console, loader
+tools/           mkadt · mkpayload · mkiosroot · unpack_bootv4 · fdt-read
+                 tegu-root-tweaks · ota-fetch · xnu-cc · pstore-pull
+docs/            BRINGUP.md (milestones) · QEMU_TESTING.md · reference notes
+NOTES.md         confirmed tegu hardware facts (from the stock DTBs)
+```
 
-- Bootloader unlock erases Android user data. Back up the phone first.
-- Bootloaders, recovery, modem, persist: never touched. `fastboot boot` only.
-- When iOS runs: permissive AMFI, no sandbox, no data protection. Never put
-  personal data on it.
+## 🛡️ Safety
 
-Credits: the entire kernel/shim/userland architecture is
-[dipa-studio/ios-sweet](https://github.com/dipa-studio/ios-sweet); this repo
-adapts it to the Pixel 9a.
+- Bootloader unlock erases Android user data — **back up the phone first**.
+- All hardware tests use `fastboot boot`: temporary, nothing is flashed,
+  Android stays installed until the iOS root image step (M5).
+- Apple's security model is switched off in the patch series. Do not put
+  anything personal on a booted device.
+
+## 🙏 Credits
+
+- **[dipa-studio/ios-sweet](https://github.com/dipa-studio/ios-sweet)** — the
+  original iOS 16 / XNU port to Redmi Note 10 Pro that this project ports
+  to the Pixel 9a. Its bring-up history is kept in `docs/reference-sweet-notes.md`.
+- Apple's XNU and the iPhone userland remain the property of Apple Inc.
+  This is a research project; no Apple code is redistributed.
+
+---
+
+<p align="center">
+  <sub>Experimental bring-up. Expect slow boots, missing drivers and wonderful crashes.</sub><br>
+  <sub>Next milestone: <a href="https://github.com/LeR33/ios-tegu/issues/6">first boot of the shim on hardware</a> ⚡</sub>
+</p>
