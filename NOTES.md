@@ -74,3 +74,5 @@ Unverified items are marked *(verify)* — usually from the live device
   hardware notes (SM7150), kept as the primary reference for how every
   subsystem was solved. This project is a port of
   https://github.com/dipa-studio/ios-sweet to the Pixel 9a.
+
+- 2026-10-20: kernel.development.tegu builds green on macOS-14 runner (17.2 MB, CI run 4, -k now off by default).
