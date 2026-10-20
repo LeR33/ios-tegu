@@ -15,12 +15,12 @@
 # it as the first argument.
 set -euo pipefail
 
-URL="${1:-}"
+URL=""
 WORKDIR="ota"
-while [[ $# -gt 1 ]]; do
-  case "$2" in
-    --workdir) WORKDIR="$3"; shift 2 ;;
-    *) shift ;;
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --workdir) WORKDIR="$2"; shift 2 ;;
+    *) URL="$1"; shift ;;
   esac
 done
 URL="${URL:-https://dl.google.com/dl/android/aosp/tegu-ota-cp3a.260905.009-6750e3df.zip}"
