@@ -189,7 +189,11 @@ jobs:
         run: |
           set +e
           python3 tools/qemu-tegu.py payload-qemu.bin qemu_run \
-            --kernel k/kernel.development.tegu --fail-on-panic --secs 45
+            --kernel k/kernel.development.tegu --fail-on-panic --secs 45 \
+            --hmp 'x /4gx 0xfffffe000c1e4000' \
+            --hmp 'x /4gx 0xfffffe000c1f4000' \
+            --hmp 'x /2gx 0xfffffe0007be1268' \
+            --hmp 'x /3gx 0xfffffe0008072058'
           rc=$?
           echo "qemu verdict exit=$rc (0 ok, 2 panic, 3 undecodable)" | tee qemu_run/verdict.txt
           exit 0
