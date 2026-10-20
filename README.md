@@ -1,5 +1,8 @@
 # ios-tegu
 
+[![verify](https://github.com/LeR33/ios-tegu/actions/workflows/verify.yml/badge.svg)](https://github.com/LeR33/ios-tegu/actions/workflows/verify.yml)
+[![xnu](https://github.com/LeR33/ios-tegu/actions/workflows/xnu.yml/badge.svg)](https://github.com/LeR33/ios-tegu/actions/workflows/xnu.yml)
+
 Apple's iOS 16 running on a **Google Pixel 9a** (tegu, Google Tensor G4).
 
 XNU (xnu-8796, the iOS 16 generation) ported to the Pixel 9a, with the
@@ -11,12 +14,14 @@ This is a port of [dipa-studio/ios-sweet](https://github.com/dipa-studio/ios-swe
 XNU patch series, shim architecture and iOS root image pipeline, with the
 tegu register map confirmed from the stock **CP3A.260905.009** firmware.
 
-## Status: pre-hardware (never booted yet)
+## Status: pre-hardware (kernel builds green, never booted yet)
 
-Everything below is a direct port of a proven architecture, with tegu's
-confirmed hardware values filled in (see NOTES.md for the register map and
-its sources). It has **not run on a device yet**. The first hardware
-milestone is listed in docs/BRINGUP.md.
+The kernel compiles clean in CI: `kernel.development.tegu` (Mach-O) is
+produced by the `xnu` workflow on every change (milestone 1 of
+docs/BRINGUP.md is done). Everything below is a direct port of a proven
+architecture, with tegu's confirmed hardware values filled in (see
+NOTES.md for the register map and its sources). It has **not run on a
+device yet**. The first hardware milestone is listed in docs/BRINGUP.md.
 
 ## Target
 
@@ -45,10 +50,14 @@ BootROM -> ABL -> `fastboot boot` shim-boot.img (temporary, nothing flashed)
 ## Build (GitHub Actions, no Linux PC needed)
 
 ```bash
-gh workflow run verify.yml -R YOU/ios-tegu       # fast check: all 81 patches apply to xnu-8796.141.3
-gh workflow run xnu.yml -R YOU/ios-tegu         # builds xnu-8796 + patches (macOS ARM runner)
-gh workflow run ota.yml -R YOU/ios-tegu         # fetches stock CP3A.260905.009 images for reference
+gh workflow run verify.yml -R LeR33/ios-tegu    # fast check: all 81 patches apply to xnu-8796.141.3
+gh workflow run xnu.yml -R LeR33/ios-tegu      # builds xnu-8796 + patches (macOS ARM runner)
+gh workflow run ota.yml -R LeR33/ios-tegu     # fetches stock CP3A.260905.009 images for reference
 ```
+
+Artifacts produced: `xnu-kernel` (the Mach-O kernel + SHA256SUMS),
+`xnu-buildtree` (the patched tree, for local single-file compiles with
+`tools/xnu-cc.py`), and the `ota` run's stock images + dumped DTBs.
 
 `verify` (Linux, free) runs on every push touching `xnu/patches/` and proves
 the whole series applies cleanly before any macOS build minutes are spent.

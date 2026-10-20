@@ -13,11 +13,13 @@ nothing flashed). Do not start milestone N+1 before N is green.
    `fastboot flashing unlock` (confirm on screen; wipes the device).
 5. Reboot to Android, set it up, enable USB debugging (for adb steps).
 
-## Milestone 1 — CI builds XNU for tegu (no phone needed)
+## Milestone 1 — CI builds XNU for tegu (no phone needed) — DONE 2026-10-20
 
 - The patch series and the xnu.yml workflow are a port of ios-sweet's
   working CI. First goal: `gh workflow run xnu.yml` green, producing
   `kernel.development.tegu`.
+- **Done.** `xnu` run 4 (commit 1975694) built `kernel.development.tegu`
+  (17.2 MB) with `-k`; after that, `-k` is off so builds fail fast.
 - Locally useful: `tools/xnu-cc.py` to replay single compiles from a CI log.
 - Stock firmware reference is already extracted (see NOTES.md). If needed
   again: `tools/ota-fetch.sh` + `tools/unpack_bootv4.py` + `tools/fdt-read.py`.
