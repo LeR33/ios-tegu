@@ -122,3 +122,42 @@ jobs:
           name: xnu-kernel
           path: out/
           if-no-files-found: warn
+
+  payload:
+    # M2->M3 bridge: package the fresh kernel into the tegu payload boot
+    # image (mkadt -> mkpayload -> shim/build.sh). shim-boot-payload.img is
+    # what the first hardware session boots after the diagnostics pass.
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: xnu-kernel
+          path: k
+      - name: Install aarch64 cross-toolchain
+        run: sudo apt-get update -q && sudo apt-get install -y -q gcc-aarch64-linux-gnu
+      - name: Build payload boot image
+        run: |
+          python3 tools/mkadt.py tegu.adt --highmem
+          python3 tools/mkpayload.py k/kernel.development.tegu tegu.adt tegu.payload
+          bash shim/build.sh "$PWD/tegu.payload"
+          mv shim/out/shim-boot.img shim/out/shim-boot-payload.img
+      - name: Validate boot image header against stock
+        run: |
+          python3 - <<'EOF'
+          import struct
+          b = open('shim/out/shim-boot-payload.img','rb').read(4096)
+          assert b[:8] == b'ANDROID!', 'bad magic'
+          hv, = struct.unpack_from('<I', b, 40)
+          assert hv == 4, f'header version {hv}'
+          ks, rs, osv, hs = struct.unpack_from('<IIII', b, 8)
+          assert hs == 1584, f'header_size {hs}'
+          assert osv == 0x220001a9, f'os_version {osv:#x}'
+          print(f'payload boot image v4 OK: kernel {ks}, payload {rs}, osv {osv:#x}')
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shim-boot-payload
+          path: shim/out/shim-boot-payload.img
+          if-no-files-found: error
