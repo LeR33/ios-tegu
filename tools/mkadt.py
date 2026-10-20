@@ -32,7 +32,7 @@ UFS, UFS_SIZE = 0x13200000, 0x200   # tegu DTB: samsung,exynos-ufs@13200000; ven
 TIMEBASE = 24576000   # tegu DTB /timer clock-frequency (confirmed)
 VTIMER_INTID = 30   # tegu: vtimer PPI 14 -> INTID 30 (verify first boot)
 # QEMU virt (-M virt,gic-version=3 -cpu cortex-a76): GICD/GICR and the generic timer's CNTFRQ
-QEMU_GICD, QEMU_GICR, QEMU_TIMEBASE = 0x08000000, 0x080a0000, 62500000
+QEMU_GICD, QEMU_GICR, QEMU_TIMEBASE = 0x08010000, 0x080a0000, 62500000  # virt gic-v3 dist/redist
 QEMU_VTIMER_INTID = 27
 
 BOOT_MANIFEST_HASH = hashlib.sha384(b'tegu boot manifest').digest()
@@ -74,6 +74,10 @@ def build(seed=None, qemu=False, highmem=False):
     """qemu=True: same tree, but with QEMU virt's GIC addresses and CNTFRQ (tools/qemu-tegu.py)."""
     phys_base, mem_size = (HIGH_PHYS_BASE, HIGH_MEM_SIZE) if highmem else (PHYS_BASE, MEM_SIZE)
     gicd, gicr, timebase = (QEMU_GICD, QEMU_GICR, QEMU_TIMEBASE) if qemu else (GICD, GICR, TIMEBASE)
+    # /arm-io children are relative to the soc base = GICD address in both
+    # modes (tegu 0x10400000, QEMU virt 0x08010000). A fixed tegu SOC_BASE
+    # made the QEMU reg pair negative -> struct 'Q' error.
+    soc_base = gicd
     seed = seed if seed is not None else os.urandom(64)
     phandle = iter(range(1, 1000))
     ph = lambda: ('AAPL,phandle', u32(next(phandle)))
@@ -155,7 +159,7 @@ def build(seed=None, qemu=False, highmem=False):
         ('compatible', cstr('arm,gic-v3')),
         ('interrupt-controller', b''),
         ('virtual-timer-intid', u32(QEMU_VTIMER_INTID if qemu else VTIMER_INTID)),
-        ('reg', u64(gicd - SOC_BASE, GICD_SIZE, gicr - SOC_BASE, GICR_SIZE)),
+        ('reg', u64(gicd - soc_base, GICD_SIZE, gicr - soc_base, GICR_SIZE)),
     ])
     arm_io = node('arm-io', [
         ph(),
@@ -163,7 +167,7 @@ def build(seed=None, qemu=False, highmem=False):
         ('compatible', cstr('tegu-io') + cstr('arm-io')),
         ('#address-cells', u32(2)),
         ('#size-cells', u32(2)),
-        ('ranges', u64(0, SOC_BASE, 0x100000000 - SOC_BASE)),
+        ('ranges', u64(0, soc_base, 0x100000000 - soc_base)),
     ], [gic,
         # No hardware: watchdogd checks IODeviceTree:/arm-io/wdt for no-pmu and
         # otherwise crashes trying to set the PMU boot stage (customer builds
