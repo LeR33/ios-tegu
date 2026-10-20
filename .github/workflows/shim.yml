@@ -29,7 +29,7 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q gcc-aarch64-linux-gnu
 
       - name: Build shim + boot image v4
-        run: sh shim/build.sh
+        run: bash shim/build.sh
 
       - name: Validate boot image header against stock
         run: |
