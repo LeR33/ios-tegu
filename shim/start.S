@@ -21,6 +21,9 @@ _head:
 _start:
 	msr	daifset, #0xf
 	mov	x19, x0			/* DTB pointer from ABL */
+	adr	x1, boot_regs		/* #4: keep x0-x3 for the FDT check */
+	stp	x0, x1, [x1]
+	stp	x2, x3, [x1, #16]
 	msr	spsel, #1
 	adr	x1, _stack_top
 	mov	sp, x1
@@ -38,6 +41,13 @@ _start:
 	bl	shim_main
 3:	wfe
 	b	3b
+
+/* #4: raw ABL entry registers, .data so the .bss zeroing keeps them. */
+	.data
+	.globl boot_regs
+boot_regs:
+	.quad	0, 0, 0, 0
+	.text
 
 /* PSCI CPU_ON target. x0 = context id = cpu index (1..7). */
 	.globl secondary_entry

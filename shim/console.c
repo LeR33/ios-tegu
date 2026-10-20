@@ -12,8 +12,16 @@
 #define LABEL_COLS	8
 
 volatile uint32_t *con_fb = (volatile uint32_t *)FB_BASE;
+uintptr_t con_fb_pa = FB_BASE;
 static uint32_t con_bg;
 static int row;
+
+void con_init(uintptr_t fb_pa)
+{
+	con_fb_pa = fb_pa;
+	con_fb = (volatile uint32_t *)fb_pa;
+	row = 0;
+}
 
 void con_clear(uint32_t bg)
 {

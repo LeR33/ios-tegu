@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-#define FB_PHYS	0x9c000000UL
+/* fb block mapping follows the console fb (see con_fb_pa in console.h) */
 
 struct mmu_info {
 	uint64_t img_lo, img_hi, ttbr;

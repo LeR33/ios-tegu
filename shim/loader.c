@@ -85,8 +85,21 @@ const char *loader_boot(uintptr_t dtb)
 		return "no initrd in /chosen";
 	con_hex2("INITRD", "lo=", rd_start, "hi=", rd_end);
 
-	const struct payload *p = (const struct payload *)rd_start;
-	if (!magic_ok(p->magic))
+	/* GKI concatenates boot + vendor ramdisks: our payload is somewhere
+	 * in the first 4 MiB, not necessarily at rd_start. Scan for the magic. */
+	uintptr_t scan = rd_start & ~7UL;
+	uintptr_t scan_end = rd_start + 0x400000;
+	if (scan_end > rd_end)
+		scan_end = rd_end;
+	const struct payload *p = 0;
+	while (scan + 0x2a8 <= scan_end) {
+		if (magic_ok((const char *)scan)) {
+			p = (const struct payload *)scan;
+			break;
+		}
+		scan += 8;
+	}
+	if (!p)
 		return "no TEGUXNU payload";
 	if (p->version != 1 || (p->adt_off & 7) || (rd_start & 7))
 		return "bad payload header";

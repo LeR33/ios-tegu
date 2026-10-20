@@ -8,18 +8,15 @@
  */
 #include <stdint.h>
 #include "console.h"
+#include "fdt.h"
 #include "mmu.h"
 #include "loader.h"
 #include "ufs.h"
 
-#define IMEM_RESTART_REASON	0x146aa65cUL	/* qcom,msm-imem restart_reason@65c */
-#define RESTART_BOOTLOADER	0x77665500U
-#define PSHOLD			0x0c264000UL
-
-#define GICD_BASE		0x17a00000UL
-#define GICR_BASE		0x17a60000UL
-#define GICR_SIZE		0x100000UL
-#define GICR_PE_SIZE		0x20000UL
+#define GICD_BASE		0x10400000UL	/* tegu FDT /interrupt-controller@10400000 */
+#define GICR_BASE		0x10440000UL	/* same node, reg pair 2 */
+#define GICR_SIZE		0x200000UL
+#define GICR_PE_SIZE		0x40000UL	/* RD+SGI per PE, 8 cores */
 #define GICR_TYPER		0x08
 #define GICR_WAKER		0x14
 #define GICR_SGI		0x10000
@@ -30,8 +27,8 @@
 #define GICR_ISPENDR0		(GICR_SGI + 0x200)
 #define GICR_ISACTIVER0		(GICR_SGI + 0x300)
 #define GICR_ICFGR1		(GICR_SGI + 0xc04)
-#define VTIMER_INTID		19	/* DT: <GIC_PPI 3 ...>, not the usual 27 */
-#define PTIMER_INTID		18	/* DT: <GIC_PPI 2 ...> */
+#define VTIMER_INTID		27	/* tegu FDT /timer: PPI 11 virt -> INTID 16+11 */
+#define PTIMER_INTID		30	/* tegu FDT /timer: PPI 14 phys -> INTID 16+14 */
 #define SGI_INTID		1
 
 #define PSCI_VERSION		0x84000000UL
@@ -106,10 +103,8 @@ static void __attribute__((noreturn)) reset(unsigned after_s)
 	con_skip();
 	con_str("RESET", after_s > 20 ? "in 40s" : "in 20s");
 	delay_ms(after_s * 1000);
-	wr32(IMEM_RESTART_REASON, RESTART_BOOTLOADER);
 	__asm__ volatile("dsb sy" ::: "memory");
-	smc(PSCI_SYSTEM_RESET, 0, 0, 0);
-	wr32(PSHOLD, 0);
+	smc(PSCI_SYSTEM_RESET, 0, 0, 0);	/* tegu: no Qualcomm PSHOLD/imem */
 	for (;;)
 		__asm__ volatile("wfe");
 }
@@ -370,14 +365,35 @@ static uint32_t to_us(uint64_t ticks)
 	return ticks * 10 / 192;	/* 19.2 MHz */
 }
 
+extern uint64_t boot_regs[4];	/* x0-x3 as ABL passed them (start.S) */
+
 void shim_main(uint64_t dtb)
 {
 	struct mmu_info mi;
+
+	/* #5: the console must target the real fb before anything is drawn.
+	 * The static tegu DTBs have no splash node; try the live FDT anyway. */
+	uint64_t fb = FB_BASE;
+	const char *fb_src = "fallback 0x9c000000";
+	uint64_t fb_fd = 0;
+	const char *fb_which = 0;
+	if (fdt_find_framebuffer((uintptr_t)dtb, &fb_fd, &fb_which)) {
+		fb = fb_fd;
+		fb_src = fb_which;
+	}
+	con_init(fb);
 
 	/* An xnu payload in the ramdisk means: boot it (MMU stays off). */
 	stage = "loader";
 	con_clear(RED);
 	con_str("SHIM", "tegu milestone 4: xnu loader");
+	con_skip();
+
+	/* #4: verify ABL passed a valid FDT pointer in x0 (Linux protocol). */
+	con_hex2("X0", "val=", boot_regs[0], "magic=", fdt_valid(boot_regs[0]) ? 0xd00dfeedU : rd32(boot_regs[0]));
+	con_hex2("X1-X3", "x1=", boot_regs[1], "x2=", boot_regs[2]);
+	con_hex2("FB", "addr=", con_fb_pa, "x3=", boot_regs[3]);
+	con_str("FB SRC", fb_src);
 	con_skip();
 	const char *why = loader_boot(dtb);
 	con_str("LOADER", why);
@@ -417,7 +433,7 @@ void shim_main(uint64_t dtb)
 	con_hex2("PARANGE", "mmfr0=", rsr("id_aa64mmfr0_el1") & 0xf, "tg16=", (rsr("id_aa64mmfr0_el1") >> 20) & 0xf);
 	con_skip();
 	con_hex("PAR img", mmu_probe((uintptr_t)shim_main));
-	con_hex("PAR fb", mmu_probe(FB_PHYS + 0x1000));
+	con_hex("PAR fb", mmu_probe(con_fb_pa + 0x1000));
 	con_hex("PAR gic", mmu_probe(GICD_BASE));
 	con_hex("PAR 12G", mmu_probe(0x300000000UL));
 	con_skip();

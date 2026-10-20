@@ -1,9 +1,9 @@
 #pragma once
 #include <stdint.h>
 
-#define FB_BASE		0x9c000000UL	/* reserved-memory cont_splash_region */
+#define FB_BASE		0x9c000000UL	/* TEGU-TODO(#5): tegu fallback; live FDT wins */
 #define FB_W		1080
-#define FB_H		2400
+#define FB_H		2406
 #define FB_STRIDE	(FB_W * 4)	/* a8r8g8b8, matches mainline simplefb */
 
 #define RED	0xffff0000U
@@ -13,6 +13,10 @@
 #define GREEN	0xff00ff00U
 
 extern volatile uint32_t *con_fb;
+extern uintptr_t con_fb_pa;	/* physical address of the console fb */
+
+/* Point the console at the fb discovered at boot (fallback: FB_BASE). */
+void con_init(uintptr_t fb_pa);
 
 void con_clear(uint32_t bg);
 void con_skip(void);

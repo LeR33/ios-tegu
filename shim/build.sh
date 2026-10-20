@@ -1,11 +1,14 @@
 #!/bin/bash
-# TEGU-TODO(m2): this mkbootimg recipe mirrors ios-sweet's boot.img v2 and has
-# NEVER been tried on tegu. tegu is GKI: stock boot.img is header v4 (kernel at
-# 4096), vendor_boot v4 (page size 2048, ramdisk lz4-legacy), plus a
-# vendor_kernel_boot image. The first hardware session must re-derive the
-# mkbootimg arguments from the stock tegu images (see docs/BRINGUP.md M2 and
-# NOTES.md "Boot chain").
-# Build the shim and wrap it in a boot.img v2 that mirrors the stock PixelOS header.
+# Build the shim and wrap it in a tegu boot image v4, mirroring the stock
+# CP3A.260905.009 boot.img header (page 4096, kernel first, header v4,
+# os_version 17.0.0 / 2026-09 patch level). tegu is GKI: the ramdisk ABL
+# hands the kernel is boot.img + vendor_boot concatenated, and the FDT comes
+# from vendor_kernel_boot via ABL. On hardware, run (issue #2):
+#   fastboot boot shim-boot.img --vendor_boot vendor_boot.img \
+#       --vendor_kernel_boot vendor_kernel_boot.img
+# (stock vendor_boot / vendor_kernel_boot from tools/ota-fetch.sh).
+# The recipe is derived from the stock headers but still TEGU-TODO(#3):
+# it has never been accepted by tegu ABL — first hardware session confirms.
 set -euo pipefail
 cd "$(dirname "$0")"
 CC=aarch64-linux-gnu-gcc
@@ -32,11 +35,8 @@ if [ -n "${1:-}" ]; then
 else
 	(cd out && rm -rf rd && mkdir rd && cd rd && find . | cpio -o -H newc --quiet | gzip -9 > ../ramdisk.bin)
 fi
-mkbootimg --header_version 2 --kernel out/Image --ramdisk out/ramdisk.bin \
-	--dtb ../dtb/boot_unpacked/dtb --base 0 --kernel_offset 0x8000 --ramdisk_offset 0x1000000 \
-	--tags_offset 0x100 --dtb_offset 0x1f00000 --pagesize 4096 \
-	--os_version 17.0.0 --os_patch_level 2035-06 \
-	--cmdline "console=null" -o out/shim-boot.img
+python3 ../tools/mkbootimg.py --header_version 4 --kernel out/Image --ramdisk out/ramdisk.bin \
+	--os_version 17.0.0 --os_patch_level 2026-09 -o out/shim-boot.img
 # Host render of the console layout.
 gcc -O1 -Wall -o out/host_test console.c host_test.c && ./out/host_test
 ls -l out/Image out/shim-boot.img

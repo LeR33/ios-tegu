@@ -184,10 +184,12 @@ python3 tools/mkpayload.py xnu/out/kernel.development.tegu out/tegu.adt out/payl
 shim/build.sh out/payload.bin        # -> shim/out/shim-boot.img
 ```
 
-⚠️ The `mkbootimg` recipe in `shim/build.sh` still mirrors the legacy boot-v2
-format and **has not run on tegu yet**: tegu is GKI (boot image v4 +
-`vendor_boot`/`vendor_kernel_boot`). Deriving the correct recipe is
-[issue #3](https://github.com/LeR33/ios-tegu/issues/3); the exact
+`shim/build.sh` emits a boot image **v4** mirroring the stock header (kernel
+page 4096, os_version 17.0.0 / 2026-09) — built automatically by the
+[`shim`](https://github.com/LeR33/ios-tegu/actions/workflows/shim.yml)
+workflow (Linux runner, artifact `shim-boot-tegu`). Still ⚠️: it has never
+been accepted by tegu ABL — first hardware session confirms
+([issue #3](https://github.com/LeR33/ios-tegu/issues/3)); the exact
 `fastboot boot` invocation is [issue #2](https://github.com/LeR33/ios-tegu/issues/2).
 
 ### Step 6 — Boot it
