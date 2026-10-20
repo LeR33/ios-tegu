@@ -28,7 +28,7 @@ jobs:
             https://github.com/apple-oss-distributions/xnu/archive/refs/tags/xnu-8796.141.3.tar.gz
           mkdir xnu-src && tar xzf xnu.tar.gz -C xnu-src --strip-components=1
 
-      - name: Stage pinned sources (as dxb does: *.sh before *.patch)
+      - name: "Stage pinned sources (as dxb does: *.sh before *.patch)"
         working-directory: xnu-src
         run: |
           export MACHINE_CONFIG=TEGU MACOS_VERSION=13.5
