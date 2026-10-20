@@ -120,3 +120,19 @@ Unverified items are marked *(verify)* — usually from the live device
   https://github.com/dipa-studio/ios-sweet to the Pixel 9a.
 
 - 2026-10-20: kernel.development.tegu builds green on macOS-14 runner (17.2 MB, CI run 4, -k now off by default).
+- 2026-10-20: CI has a QEMU smoke job (evidence mode, non-blocking) booting the
+  fresh kernel + ADT (--qemu) in virt for 45 s and archiving fb.png/fb.txt/
+  serial.txt/regs.txt/qemu.log. First successful run (after two tool bugs
+  found by the job itself: mkadt QEMU-mode reg pair went negative with a fixed
+  tegu SOC_BASE, now soc_base = gicd in both modes; qemu-tegu's magic assert
+  compared a NUL-padded 8s read against the 7-byte literal). Baseline verdict:
+  blank screen, no serial (tegu UART is not emulated; no PL011 node in ADT),
+  exit 3. The kernel executes real instructions then takes:
+    Data Abort EL1 ESR 0x96000010 FAR 0xfffffe000c1e4000 (write ~97 MB above
+    virt_base, past kernel_end 0xfffffe00084c8000) ELR 0xfffffe0007a78fcc,
+    then the vector path itself faults (Undefined Instruction ESR 0x2000000),
+    PC loops at the vectors 0xfffffe0007487000.
+  So: code runs, static mapping ends before the fault target, and the
+  exception vectors are not usable yet at that stage. First QEMU baseline;
+  tracked in the QEMU-boot issue. Also QEMU_GICD corrected to 0x08010000
+  (virt gic-v3 distributor, was 0x08000000).
