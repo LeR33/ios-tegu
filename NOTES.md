@@ -95,6 +95,10 @@ Unverified items are marked *(verify)* — usually from the live device
   fault before PSCI SYSTEM_RESET); PSCI only.
 - Host-side: console renders with FB_H corrected to 2406 (panel is
   1080x2406, not 2400).
+- Patch series verified out-of-band (Linux, no CI): all 81 patches apply
+  cleanly against the official apple-oss-distributions/xnu xnu-8796.141.3
+  tarball, with the stage scripts (0019/0020/0026) run first as dxb does.
+  0031 and 0041 need the staged bsd/tegu_hfs sources to exist first.
 
 ## Serial / logging
 
