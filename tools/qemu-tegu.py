@@ -77,7 +77,8 @@ def check_kernel_tools(kernel_path):
 def build_image(payload):
     """Return (phys_base, ram_image, boot_args_pa, entry_pa)."""
     magic, ver, nsegs = struct.unpack_from('<8sII', payload, 0)
-    assert magic == b'TEGUXNU' and ver == 1, 'not a TEGUXNU v1 payload'
+    # mkpayload writes the 7-byte magic 'TEGUXNU' NUL-padded by struct 8s
+    assert magic.rstrip(b'\0') == b'TEGUXNU' and ver == 1, 'not a TEGUXNU v1 payload'
     virt_base, entry_va, adt_off, adt_size, kernel_end, phys_base, mem_size = \
         struct.unpack_from('<7Q', payload, 0x10)
     cmdline = payload[0x48:0x48 + BOOT_LINE_LENGTH]
