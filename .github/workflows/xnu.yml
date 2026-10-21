@@ -199,9 +199,44 @@ jobs:
           exit 0
       - name: Summarize
         run: cat qemu_run/result.json qemu_run/verdict.txt 2>/dev/null || true
+      - name: GDB trace of the GIC io maps (evidence, issue #7)
+        run: |
+          sudo apt-get install -y -q gdb-multiarch
+          (python3 tools/qemu-tegu.py payload-qemu.bin qemu_gdb --gdb > qemu_gdb.log 2>&1 &)
+          sleep 10
+          gdb-multiarch -batch \
+            -ex 'set pagination off' \
+            -ex 'target remote :1234' \
+            -ex 'break *0xfffffe0007a78e60' \
+            -ex 'commands' \
+            -ex 'silent' \
+            -ex 'printf "GICD_VA=%#lx phase=%d cursor=%#lx\n", $x0, *(int*)0xfffffe0007170208, *(unsigned long*)0xfffffe0007be1268' \
+            -ex 'x/1wx $x0' \
+            -ex 'continue' \
+            -ex 'end' \
+            -ex 'break *0xfffffe0007a78e70' \
+            -ex 'commands' \
+            -ex 'silent' \
+            -ex 'printf "GICR_VA=%#lx\n", $x0' \
+            -ex 'x/1wx $x0' \
+            -ex 'continue' \
+            -ex 'end' \
+            -ex 'break *0xfffffe0007a78fcc' \
+            -ex 'commands' \
+            -ex 'silent' \
+            -ex 'printf "FAULT x8=%#lx TTBR0=%#lx TTBR1=%#lx\n", $x8, $TTBR0_EL1, $TTBR1_EL1' \
+            -ex 'x/1wx $x8' \
+            -ex 'detach' \
+            -ex 'end' \
+            -ex 'continue' 2>&1 | tee gdb-trace.txt || true
+          pkill -f qemu-system-aarch64 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: qemu-run
-          path: qemu_run/
+          path: |
+            qemu_run/
+            qemu_gdb/
+            qemu_gdb.log
+            gdb-trace.txt
           if-no-files-found: warn
